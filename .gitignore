@@ -2,3 +2,5 @@ node_modules/
 .env
 models/
 *.onnx
+compose.override.yml
+backup/
