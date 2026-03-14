@@ -1,0 +1,39 @@
+{
+  "name": "mcp-recall",
+  "version": "0.2.0",
+  "description": "Self-hosted MCP memory server with semantic search, swappable embedding models, and built-in benchmarking",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "migrate": "node src/migrate.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@xenova/transformers": "^2.17.0",
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "zod": "^3.24.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "memory",
+    "semantic-search",
+    "embeddings",
+    "pgvector",
+    "claude",
+    "model-context-protocol",
+    "self-hosted",
+    "onnx",
+    "rag"
+  ],
+  "author": "Jens Selbach",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jensimogit/mcp-recall.git"
+  }
+}

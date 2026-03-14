@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: mcp-recall-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mcp_recall
+      POSTGRES_USER: mcp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcp -d mcp_recall"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mcp-internal
+
+  mcp-recall:
+    build: .
+    container_name: mcp-recall-server
+    restart: unless-stopped
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: "postgresql://mcp:${POSTGRES_PASSWORD}@postgres:5432/mcp_recall"
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      EMBEDDINGS_MODEL: "${EMBEDDINGS_MODEL:-multilingual-e5-large}"
+      LOCAL_MODEL_PATH: "/app/models/"
+      TRUST_PROXY: "${TRUST_PROXY:-0}"
+    volumes:
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mcp-internal
+
+networks:
+  mcp-internal:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local
