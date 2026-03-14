@@ -108,24 +108,37 @@ Start a new Claude Code session and try the tools:
 ```
 $ claude
 
-You: Use memory_stats to check the database
+❯ Use memory_stats to check the database
 
-Claude: ✓ memory_stats → {"total_memories": 10, ...}
+● mcp-recall - memory_stats (MCP)
+  ⎿  Total memories: 10
+     Unique tags: 14
 
-You: Search memories for "backup"
+● The database has 10 memories with 14 unique tags.
 
-Claude: ✓ memory_search → finds "Database backup: docker exec mcp-recall-db pg_dump ..."
+❯ Search memories for "backup"
 
-You: Store a new memory: "The deploy key is in 1Password under 'production-deploy'"
+● mcp-recall - memory_search (MCP)(query: "backup")
+  ⎿  [1] (79.1% match) Database backup: docker exec mcp-recall-db pg_dump -U mcp
+     mcp_recall > backup.sql. Restore: cat backup.sql | docker exec -i
+     mcp-recall-db psql -U mcp mcp_recall.
+         Tags: operations, backup
 
-Claude: ✓ memory_store → stored with auto-generated embedding
+❯ Store a new memory: "The deploy key is in 1Password under 'production-deploy'"
 
-You: Search for "deploy credentials"
+● mcp-recall - memory_store (MCP)(content: "The deploy key is in 1Password under
+                                 'production-deploy'", tags: ["deployment","credentials"])
+  ⎿  Stored memory 33c6f4e8-f0bc-435a-bb46-fd83676698dd:
+     The deploy key is in 1Password under 'production-deploy'
 
-Claude: ✓ memory_search → finds the memory you just stored
+❯ Search for "deploy credentials"
+
+● mcp-recall - memory_search (MCP)(query: "deploy credentials")
+  ⎿  [1] (85.0% match) The deploy key is in 1Password under 'production-deploy'
+         Tags: deployment, credentials
 ```
 
-If the tools show up and return results, you're all set.
+Note how "deploy credentials" matches "deploy key in 1Password" with 85% similarity — that's semantic search in action, matching meaning rather than keywords.
 
 ## Architecture
 
