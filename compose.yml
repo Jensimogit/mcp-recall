@@ -30,6 +30,9 @@ services:
       EMBEDDINGS_MODEL: "${EMBEDDINGS_MODEL:-multilingual-e5-large}"
       LOCAL_MODEL_PATH: "/app/models/"
       TRUST_PROXY: "${TRUST_PROXY:-0}"
+      MCP_API_KEY: "${MCP_API_KEY:-}"
+      MCP_AUTH_PIN: "${MCP_AUTH_PIN:-}"
+      MCP_BASE_URL: "${MCP_BASE_URL:-}"
     volumes:
       - ./models:/app/models:ro
     depends_on:

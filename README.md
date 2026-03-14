@@ -238,6 +238,35 @@ The switch script handles everything:
 | `EMBEDDINGS_MODEL` | `multilingual-e5-large` | Model directory name in `./models/` |
 | `MCP_PORT` | `3000` | Server port |
 | `TRUST_PROXY` | `0` | Proxy trust level (set to `1` behind nginx/Caddy) |
+| `MCP_API_KEY` | (none) | Static Bearer token for CLI clients (Claude Code) |
+| `MCP_AUTH_PIN` | (none) | PIN for OAuth 2.1 consent flow (claude.ai, mobile) |
+| `MCP_BASE_URL` | (none) | Public URL of the server (required for OAuth) |
+
+### Authentication
+
+mcp-recall supports two optional authentication methods. If neither is configured, all requests are allowed (suitable for local-only use).
+
+**API key** (for Claude Code and other CLI clients):
+
+```bash
+# Generate a key and add to .env
+echo "MCP_API_KEY=$(openssl rand -base64 32)" >> .env
+
+# Configure Claude Code with the key
+claude mcp add -s user --transport http \
+  --header "Authorization: Bearer YOUR_API_KEY" \
+  mcp-recall http://localhost:3000/mcp
+```
+
+**OAuth 2.1 with PIN** (for claude.ai, mobile clients):
+
+```bash
+# Add to .env
+MCP_AUTH_PIN=123456          # choose a secure PIN
+MCP_BASE_URL=https://your-server.example.com  # public URL
+```
+
+When a web client connects, it's redirected to a PIN entry page. After entering the correct PIN, the client receives an OAuth token (valid 24h, refresh 30 days). Failed PIN attempts are rate-limited with increasing delays.
 
 ### Behind a reverse proxy
 

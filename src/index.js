@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { runMigrations, createMemory, searchMemories, listMemories,
          getMemory, updateMemory, deleteMemory, getStats, closePool } from './database.js';
 import { initEmbeddings, generateEmbedding } from './embeddings.js';
+import { initAuth, authMiddleware } from './auth.js';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const HOST = process.env.HOST || '0.0.0.0';
@@ -174,8 +175,15 @@ const app = express();
 app.set('trust proxy', parseInt(process.env.TRUST_PROXY || '0'));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-// Health check
+// Auth (OAuth 2.1 routes + consent page, if MCP_AUTH_PIN is set)
+initAuth(app);
+
+// Auth middleware for MCP endpoints
+const auth = authMiddleware();
+
+// Health check (no auth required)
 app.get('/health', async (_req, res) => {
   try {
     const stats = await getStats();
@@ -192,7 +200,7 @@ app.get('/health', async (_req, res) => {
 });
 
 // --- Streamable HTTP transport (POST /mcp) ---
-app.post('/mcp', async (req, res) => {
+app.post('/mcp', auth, async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
 
   if (sessionId && httpSessions.has(sessionId)) {
@@ -218,7 +226,7 @@ app.post('/mcp', async (req, res) => {
 });
 
 // Handle GET /mcp for SSE stream (Streamable HTTP spec)
-app.get('/mcp', async (req, res) => {
+app.get('/mcp', auth, async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
   if (!sessionId || !httpSessions.has(sessionId)) {
     res.status(400).json({ error: 'Invalid or missing session ID' });
@@ -229,7 +237,7 @@ app.get('/mcp', async (req, res) => {
 });
 
 // Handle DELETE /mcp for session cleanup
-app.delete('/mcp', async (req, res) => {
+app.delete('/mcp', auth, async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
   if (sessionId && httpSessions.has(sessionId)) {
     const session = httpSessions.get(sessionId);
@@ -240,7 +248,7 @@ app.delete('/mcp', async (req, res) => {
 });
 
 // --- Legacy SSE transport (GET /sse + POST /messages) ---
-app.get('/sse', async (req, res) => {
+app.get('/sse', auth, async (req, res) => {
   console.log('New SSE connection');
   const transport = new SSEServerTransport('/messages', res);
   const server = createMcpServer();
@@ -256,7 +264,7 @@ app.get('/sse', async (req, res) => {
   await server.connect(transport);
 });
 
-app.post('/messages', async (req, res) => {
+app.post('/messages', auth, async (req, res) => {
   const sessionId = req.query.sessionId;
   const session = sessions.get(sessionId);
 
