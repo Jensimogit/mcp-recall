@@ -57,6 +57,12 @@ async function benchmarkModel(modelName, modelConf) {
   const embedTime = ((Date.now() - t0) / 1000).toFixed(1);
   console.log(`Done in ${embedTime}s (${(memories.length / (Date.now() - t0) * 1000).toFixed(1)}/s)\n`);
 
+  if (memories.length === 0) {
+    console.log('No memories found. Store some memories first, then run the benchmark again.\n');
+    pipe.dispose?.();
+    return;
+  }
+
   // Run queries
   for (const query of QUERIES) {
     const qEmb = await embed(query);
@@ -84,7 +90,16 @@ async function main() {
   
   for (const [name, conf] of Object.entries(MODELS)) {
     if (modelFilter && name !== modelFilter) continue;
-    await benchmarkModel(name, conf);
+    try {
+      await benchmarkModel(name, conf);
+    } catch (err) {
+      if (err.message?.includes('not found locally')) {
+        console.log(`\nSkipping ${name} — model not downloaded.`);
+        console.log(`Download it first: node scripts/download-model.js ${name}\n`);
+      } else {
+        throw err;
+      }
+    }
   }
 
   await pool.end();

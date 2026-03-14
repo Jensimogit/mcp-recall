@@ -9,9 +9,10 @@ RUN npm install --production
 # Models are mounted via Docker volume — not baked into image
 # Mount point: /app/models/
 
-# Copy source and migrations
+# Copy source, migrations, and scripts
 COPY src/ src/
 COPY migrations/ migrations/
+COPY scripts/ scripts/
 
 EXPOSE 3000
 

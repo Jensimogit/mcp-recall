@@ -10,7 +10,7 @@
  *   all-MiniLM-L6-v2       (384d, lightweight)
  */
 
-import { existsSync, mkdirSync, cpSync } from 'fs';
+import { existsSync, mkdirSync, cpSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -34,6 +34,21 @@ const MODELS = {
     desc: 'Lightweight, English-focused (~22 MB)',
   },
 };
+
+// Recursively find a file by name under a directory
+function findFile(dir, name) {
+  try {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (entry === name) return full;
+      if (statSync(full).isDirectory()) {
+        const found = findFile(full, name);
+        if (found) return found;
+      }
+    }
+  } catch { /* ignore permission errors */ }
+  return null;
+}
 
 async function main() {
   const modelName = process.argv[2];
@@ -67,28 +82,52 @@ async function main() {
   const out = await pipe('test', { pooling: 'mean', normalize: true });
   console.log(`Model loaded: ${out.data.length} dimensions`);
 
-  // Find cached files and copy to models directory
-  const cacheBase = join(dirname(fileURLToPath(import.meta.resolve('@xenova/transformers'))), '.cache', model.hf.replace('/', '/'));
-
-  // Check common cache locations
-  const cachePaths = [
-    cacheBase,
-    join(process.env.HOME || '/root', '.cache', 'huggingface', 'hub', `models--${model.hf.replace('/', '--')}`, 'snapshots'),
+  // Locate cached model files — try known paths, then search
+  const transformersPkg = dirname(fileURLToPath(import.meta.resolve('@xenova/transformers')));
+  const candidates = [
+    join(transformersPkg, '.cache', ...model.hf.split('/')),
+    join(transformersPkg, '.cache', model.hf.replace('/', '_')),
   ];
 
-  // Use env.cacheDir if available
-  const transformersCacheDir = join(dirname(fileURLToPath(import.meta.resolve('@xenova/transformers'))), '.cache');
-  const hfDir = join(transformersCacheDir, ...model.hf.split('/'));
+  let cacheDir = candidates.find(d => existsSync(join(d, 'config.json')));
 
-  if (existsSync(hfDir)) {
-    mkdirSync(join(targetDir, 'onnx'), { recursive: true });
-    cpSync(hfDir, targetDir, { recursive: true });
+  // Fallback: search the entire .cache directory
+  if (!cacheDir) {
+    console.log('Searching for cached model files...');
+    const cacheBase = join(transformersPkg, '.cache');
+    if (existsSync(cacheBase)) {
+      const configPath = findFile(cacheBase, 'config.json');
+      if (configPath) {
+        // Walk up to find a directory that looks like the model root
+        // (contains config.json + tokenizer.json)
+        let candidate = dirname(configPath);
+        if (existsSync(join(candidate, 'tokenizer.json'))) {
+          cacheDir = candidate;
+        }
+      }
+    }
+  }
+
+  if (cacheDir) {
+    mkdirSync(targetDir, { recursive: true });
+    cpSync(cacheDir, targetDir, { recursive: true });
+    // Verify the copy
+    const required = ['config.json', 'tokenizer.json'];
+    const missing = required.filter(f => !existsSync(join(targetDir, f)));
+    if (missing.length > 0) {
+      console.error(`\nWarning: copied files but missing: ${missing.join(', ')}`);
+      console.error(`Check: ls ${targetDir}`);
+      process.exit(1);
+    }
     console.log(`\nModel saved to ${targetDir}`);
+    console.log(`Files: ${readdirSync(targetDir).join(', ')}`);
   } else {
-    console.log(`\nModel downloaded to cache but could not auto-copy.`);
-    console.log(`Cache location: ${transformersCacheDir}`);
-    console.log(`Please manually copy the model files to: ${targetDir}`);
-    console.log(`Required files: config.json, tokenizer.json, tokenizer_config.json, onnx/model_quantized.onnx`);
+    console.error(`\nError: Model downloaded but cached files could not be located.`);
+    console.error(`\nManual fix:`);
+    console.error(`  find node_modules/@xenova/transformers/.cache -name "config.json"`);
+    console.error(`  # Copy the directory containing config.json to:`);
+    console.error(`  cp -r <cache-dir>/* ${targetDir}/`);
+    process.exit(1);
   }
 
   // Cleanup

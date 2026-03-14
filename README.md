@@ -29,8 +29,10 @@ mcp-recall stores memories as vector embeddings in PostgreSQL and makes them sea
 ```bash
 git clone https://github.com/Jensimogit/mcp-recall.git
 cd mcp-recall
+npm install
 cp .env.example .env
-# Edit .env — set a strong POSTGRES_PASSWORD
+# Generate a random database password (you'll never need to type it)
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
 ```
 
 ### 2. Download an embedding model
@@ -38,15 +40,22 @@ cp .env.example .env
 Models are not included in the repository (they're 170–560 MB). Download one:
 
 ```bash
-mkdir -p models/multilingual-e5-large
-
-# Option A: Use the download script
 node scripts/download-model.js multilingual-e5-large
+```
 
-# Option B: Manual download from Hugging Face
-# Visit https://huggingface.co/Xenova/multilingual-e5-large
-# Download: config.json, tokenizer.json, tokenizer_config.json, onnx/model_quantized.onnx
-# Place them in models/multilingual-e5-large/
+Verify the model files are in place:
+
+```bash
+ls models/multilingual-e5-large/
+# Expected: config.json  onnx/  tokenizer.json  tokenizer_config.json
+```
+
+If the directory is empty (rare, depends on cache layout), copy manually:
+
+```bash
+find node_modules/@xenova/transformers/.cache -name "config.json"
+# Copy the directory that contains config.json + tokenizer.json:
+cp -r node_modules/@xenova/transformers/.cache/Xenova/multilingual-e5-large/* models/multilingual-e5-large/
 ```
 
 ### 3. Start the server
@@ -63,7 +72,22 @@ curl http://localhost:3000/health
 # {"status":"ok","version":"0.2.0","model":"multilingual-e5-large","memories":0,"sessions":0}
 ```
 
-### 4. Connect your AI assistant
+### 4. Seed example memories (optional)
+
+Load some example memories to verify search works and to run benchmarks:
+
+```bash
+docker compose run --rm mcp-recall node scripts/seed-examples.js
+```
+
+This stores 10 memories about mcp-recall itself. You can search them immediately:
+
+```bash
+# Quick test via the health endpoint — should show memories: 10
+curl http://localhost:3000/health
+```
+
+### 5. Connect your AI assistant
 
 **Claude Code:**
 ```bash
@@ -76,6 +100,32 @@ claude mcp add -s user --transport sse mcp-recall http://localhost:3000/sse
 ```
 
 **Other MCP clients** — point them to `http://localhost:3000/mcp` (Streamable HTTP) or `http://localhost:3000/sse` (SSE).
+
+### 6. Verify it works
+
+Start a new Claude Code session and try the tools:
+
+```
+$ claude
+
+You: Use memory_stats to check the database
+
+Claude: ✓ memory_stats → {"total_memories": 10, ...}
+
+You: Search memories for "backup"
+
+Claude: ✓ memory_search → finds "Database backup: docker exec mcp-recall-db pg_dump ..."
+
+You: Store a new memory: "The deploy key is in 1Password under 'production-deploy'"
+
+Claude: ✓ memory_store → stored with auto-generated embedding
+
+You: Search for "deploy credentials"
+
+Claude: ✓ memory_search → finds the memory you just stored
+```
+
+If the tools show up and return results, you're all set.
 
 ## Architecture
 
@@ -219,7 +269,8 @@ mcp-recall/
 ├── scripts/
 │   ├── switch-model.js     # Switch models with DB migration + re-embedding
 │   ├── benchmark-models.js # A/B compare models against your data
-│   └── download-model.js   # Download models from Hugging Face
+│   ├── download-model.js   # Download models from Hugging Face
+│   └── seed-examples.js    # Load example memories for testing
 └── src/
     ├── index.js            # MCP server, Express, dual transport (308 lines)
     ├── database.js         # PostgreSQL CRUD operations (158 lines)
