@@ -141,7 +141,7 @@ export async function deleteMemory(id) {
 export async function getStats() {
   const { rows } = await getPool().query(`
     SELECT
-      COUNT(*) AS total_memories,
+      COUNT(DISTINCT id) AS total_memories,
       COUNT(DISTINCT unnest_tags) AS unique_tags,
       MIN(created_at) AS oldest_memory,
       MAX(created_at) AS newest_memory
