@@ -19,7 +19,7 @@ services:
 
   mcp-recall:
     build: .
-    container_name: mcp-recall-server
+    container_name: mcp-recall
     restart: unless-stopped
     ports:
       - "${MCP_PORT:-3000}:3000"
