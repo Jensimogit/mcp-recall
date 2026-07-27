@@ -4,3 +4,6 @@ models/
 *.onnx
 compose.override.yml
 backup/
+
+# mcp-recall Konsolidierung: echtes Token nie committen
+consolidation/*.env
