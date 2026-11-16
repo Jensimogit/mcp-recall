@@ -57,6 +57,13 @@ if [ -z "$fehler" ]; then
     fi
 fi
 
+# Unpaired „ (quote glyph mentioned literally) would make the docs
+# sanity-check block the commit and the auto-commit timer every 15 min.
+if [ -z "$fehler" ]; then
+    python3 "$(dirname "$(readlink -f "$0")")/fix-quotes.py" "$REPORT_TMP" >> "$LOG_FILE" 2>&1 \
+        || echo "WARN: fix-quotes.py fehlgeschlagen (Report unverändert)" >> "$LOG_FILE"
+fi
+
 # --- Persistenz-Phase (run.sh selbst, ausserhalb der Sandbox) --------------
 if [ -z "$fehler" ]; then
     mkdir -p "$REPORT_DIR"
